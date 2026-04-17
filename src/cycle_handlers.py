@@ -324,7 +324,7 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if target_date == date.today():
         now_h = datetime.now(TZ).hour
         period_hours, _ = PERIODS[period]
-        if max(period_hours) <= now_h:
+        if max(period_hours) < now_h:
             period_names = list(PERIODS)
             idx = period_names.index(period)
             suggestions = period_names[idx + 1:]
