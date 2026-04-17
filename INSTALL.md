@@ -2,31 +2,56 @@
 
 Steps to run the bot as a systemd daemon on Linux.
 
-## 1. Create a system user
+## 1. Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+## 2. Install Python 3.14
+
+Python 3.14 is not yet available in most distro package managers. Use pyenv:
+
+```bash
+curl https://pyenv.run | bash
+pyenv install 3.14.0
+```
+
+Or check the [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa) if on Ubuntu.
+
+## 3. Create a system user
 
 ```bash
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin cyclebot
 ```
 
-## 2. Build the virtual environment
-
-Run once as yourself from the repo root. After any dependency changes, re-run this and restart the service.
+## 4. Clone the repo and build the virtual environment
 
 ```bash
+git clone https://github.com/tdrmk/cycling-weather-bot /path/to/cycling-weather-bot
+cd /path/to/cycling-weather-bot
 uv sync
 ```
 
-## 3. Set directory permissions
+After any dependency changes, re-run `uv sync` and restart the service.
+
+## 5. Create the data directory
+
+```bash
+mkdir -p /path/to/cycling-weather-bot/data
+```
+
+## 6. Set directory permissions
 
 The repo is owned by you but readable by `cyclebot`. Only `data/` is writable by `cyclebot`.
 
 ```bash
 sudo chown -R youruser:cyclebot /path/to/cycling-weather-bot
 sudo chmod -R g+rX /path/to/cycling-weather-bot
-sudo chown cyclebot /path/to/cycling-weather-bot/data
+sudo chown cyclebot:cyclebot /path/to/cycling-weather-bot/data
 ```
 
-## 4. Set .env permissions
+## 7. Set .env permissions
 
 `TOKEN` must be readable by `cyclebot` but not by other users.
 
@@ -35,7 +60,7 @@ sudo chown youruser:cyclebot /path/to/cycling-weather-bot/.env
 sudo chmod 640 /path/to/cycling-weather-bot/.env
 ```
 
-## 5. Create the service file
+## 8. Create the service file
 
 Create `/etc/systemd/system/cycling-weather-bot.service`:
 
@@ -58,7 +83,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-## 6. Enable and start
+## 9. Enable and start
 
 ```bash
 sudo systemctl daemon-reload
@@ -66,7 +91,7 @@ sudo systemctl enable cycling-weather-bot
 sudo systemctl start cycling-weather-bot
 ```
 
-## 7. Verify
+## 10. Verify
 
 ```bash
 sudo systemctl status cycling-weather-bot
