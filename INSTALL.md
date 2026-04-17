@@ -17,7 +17,7 @@ sudo useradd --system --no-create-home --shell /usr/sbin/nologin cyclebot
 ## 3. Clone the repo and build the virtual environment
 
 ```bash
-git clone https://github.com/tdrmk/cycling-weather-bot /opt/cycling-weather-bot
+sudo git clone https://github.com/tdrmk/cycling-weather-bot /opt/cycling-weather-bot
 cd /opt/cycling-weather-bot
 uv sync
 ```
