@@ -27,11 +27,11 @@ async def post_init(app):
 
 async def log_update(update: Update, _context):
     user = update.effective_user
-    who = f"{user.full_name} (@{user.username}, id={user.id})"
+    who = f"{user.full_name!r} (@{user.username!r}, id={user.id})"
     if update.message and update.message.text:
-        print(f"[cmd]      {who}: {update.message.text}")
+        print(f"[cmd]      {who}: {update.message.text!r}")
     elif update.callback_query:
-        print(f"[callback] {who}: {update.callback_query.data}")
+        print(f"[callback] {who}: {update.callback_query.data!r}")
 
 
 if __name__ == "__main__":
