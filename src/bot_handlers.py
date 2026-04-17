@@ -12,7 +12,6 @@ _COMMANDS = """
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name
     user = update.effective_user
-    print(f"[start] {user.full_name} (@{user.username}, id={user.id})")
     locs = context.user_data.get("locations", [])
     if not locs:
         await update.message.reply_text(
