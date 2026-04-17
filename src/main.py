@@ -15,6 +15,7 @@ from location_handlers import location_handlers, commands as location_commands
 from weather_handlers import weather_handlers, commands as weather_commands
 from cycle_handlers import cycle_handlers, commands as cycle_commands
 from bot_handlers import bot_handlers
+from scheduled import register_jobs
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ TOKEN = os.getenv("TOKEN")
 
 async def post_init(app):
     await app.bot.set_my_commands(location_commands + weather_commands + cycle_commands)
+    register_jobs(app)
 
 
 async def log_update(update: Update, _context):
