@@ -38,6 +38,9 @@ if __name__ == "__main__":
     Path("data").mkdir(exist_ok=True)
     persistence = PicklePersistence(filepath="data/bot_data")
     app = Application.builder().token(TOKEN).persistence(persistence).post_init(post_init).build()
+    # Group -1 runs before all command/callback handlers (which default to group 0).
+    # TypeHandler(Update) matches every update type, so this logs everything
+    # without interfering with normal handler dispatch.
     app.add_handler(TypeHandler(Update, log_update), group=-1)
     for h in bot_handlers:
         app.add_handler(h)
