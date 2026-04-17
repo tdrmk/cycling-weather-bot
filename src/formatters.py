@@ -1,4 +1,5 @@
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 import labels as l
 
@@ -28,12 +29,14 @@ def _date_label(target_date, today):
     return target_date.strftime("%a %b %-d")
 
 
-def format_now(loc_name, forecast):
+def format_now(loc, forecast):
     dt, row = next(iter(forecast.rows.items()))
     night = _is_night(dt, forecast.sunrise, forecast.sunset)
     label, condition_emoji = l.wmo(row.wmo_code, night)
+    tz_abbr = dt.replace(tzinfo=ZoneInfo(loc.timezone)).strftime("%Z")
     lines = [
-        f"📍 *{loc_name}*",
+        f"📍 *{loc.city_name}*",
+        dt.strftime("%-I %p") + f" {tz_abbr}",
         f"{condition_emoji} {label} ({row.cloud}% clouds)",
         f"🌡 {row.temp:.0f}°C  (feels {row.feels:.0f}°C)",
         f"💧 Humidity {row.humidity}%",

@@ -64,7 +64,7 @@ async def now_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(err)
         return
     result = await forecast.get_now(loc)
-    text = formatters.format_now(_loc_name(loc), result)
+    text = formatters.format_now(loc, result)
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
