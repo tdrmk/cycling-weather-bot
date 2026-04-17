@@ -10,6 +10,7 @@ class Location:
     country: str
     lat: float      # degrees
     lon: float      # degrees
+    timezone: str = "America/Los_Angeles"
 
 
 @dataclass

@@ -8,8 +8,6 @@ import forecast
 import labels as l
 from weather_handlers import resolve_location, _next_weekday, _WEEKDAYS
 
-TZ = ZoneInfo("America/Los_Angeles")
-
 PERIODS = {
     "morning": (range(8, 12),  "Morning (8AM–12PM)"),
     "noon":    (range(12, 16), "Noon (12PM–4PM)"),
@@ -20,7 +18,7 @@ PERIODS = {
 _PERIOD_NAMES = set(PERIODS)
 
 
-def _parse_cycle_args(args, saved_locs):
+def _parse_cycle_args(args, saved_locs, today):
     tokens = [t.lower() for t in args]
 
     # Extract period (first matching token wins)
@@ -34,21 +32,21 @@ def _parse_cycle_args(args, saved_locs):
     tokens = rest
 
     # Extract day (token by token, handles "next <weekday>")
-    target_date = date.today()
+    target_date = today
     rest = []
     i = 0
     while i < len(tokens):
         if tokens[i] == "next" and i + 1 < len(tokens) and tokens[i + 1] in _WEEKDAYS:
-            target_date = _next_weekday(_WEEKDAYS.index(tokens[i + 1])) + timedelta(7)
+            target_date = _next_weekday(_WEEKDAYS.index(tokens[i + 1]), today) + timedelta(7)
             i += 2
         elif tokens[i] == "today":
-            target_date = date.today()
+            target_date = today
             i += 1
         elif tokens[i] == "tomorrow":
-            target_date = date.today() + timedelta(1)
+            target_date = today + timedelta(1)
             i += 1
         elif tokens[i] in _WEEKDAYS:
-            target_date = _next_weekday(_WEEKDAYS.index(tokens[i]))
+            target_date = _next_weekday(_WEEKDAYS.index(tokens[i]), today)
             i += 1
         else:
             rest.append(tokens[i])
@@ -195,11 +193,10 @@ _VERDICT_EMOJI = {
 }
 
 
-def format_cycle(loc_name, hrly, period):
+def format_cycle(loc_name, hrly, period, today):
     period_hours, period_label = PERIODS[period]
     rows = {dt: row for dt, row in hrly.rows.items() if dt.hour in period_hours}
 
-    today = date.today()
     if hrly.date == today:
         date_label = f"Today ({hrly.date.strftime('%a %b %-d')})"
     elif hrly.date == today + timedelta(1):
@@ -256,8 +253,7 @@ def format_cycle(loc_name, hrly, period):
     return "\n".join(lines).rstrip()
 
 
-def format_cycle_day_compact(loc_name, hrly):
-    today = date.today()
+def format_cycle_day_compact(loc_name, hrly, today):
     if hrly.date == today:
         date_label = f"Today ({hrly.date.strftime('%a %b %-d')})"
     elif hrly.date == today + timedelta(1):
@@ -285,9 +281,9 @@ def format_cycle_day_compact(loc_name, hrly):
     return "\n".join(lines).rstrip()
 
 
-def format_cycle_day_extended(loc_name, hrly):
+def format_cycle_day_extended(loc_name, hrly, today):
     return "\n\n".join(
-        format_cycle(loc_name, hrly, period) for period in PERIODS
+        format_cycle(loc_name, hrly, period, today) for period in PERIODS
     )
 
 
@@ -299,7 +295,8 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No locations set. Add one with /add <city>")
         return
 
-    city_arg, target_date, period, err = _parse_cycle_args(context.args, saved_locs)
+    # First pass: extract city only (city extraction is date-independent)
+    city_arg, _, _, err = _parse_cycle_args(context.args, saved_locs, date.today())
     if err:
         await update.message.reply_text(err)
         return
@@ -309,10 +306,16 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(err)
         return
 
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
+    city_arg, target_date, period, err = _parse_cycle_args(context.args, saved_locs, today_loc)
+    if err:
+        await update.message.reply_text(err)
+        return
+
     hrly = await forecast.get_hourly(loc, target_date)
 
     if period is None:
-        text = format_cycle_day_compact(loc.city_name, hrly)
+        text = format_cycle_day_compact(loc.city_name, hrly, today_loc)
         button = InlineKeyboardButton(
             "Show extended ▼",
             callback_data=f"cycle:extended:{loc.id}:{target_date.isoformat()}",
@@ -321,8 +324,8 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Check if period is already past for today
-    if target_date == date.today():
-        now_h = datetime.now(TZ).hour
+    if target_date == today_loc:
+        now_h = datetime.now(ZoneInfo(loc.timezone)).hour
         period_hours, _ = PERIODS[period]
         if max(period_hours) < now_h:
             period_names = list(PERIODS)
@@ -335,7 +338,7 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"That period has already passed. Try {tip}.")
             return
 
-    text = format_cycle(loc.city_name, hrly, period)
+    text = format_cycle(loc.city_name, hrly, period, today_loc)
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
@@ -349,16 +352,17 @@ async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not loc:
         await query.edit_message_text("Location no longer saved.")
         return
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     target_date = date.fromisoformat(date_str)
     hrly = await forecast.get_hourly(loc, target_date)
     if view == "extended":
-        text = format_cycle_day_extended(loc.city_name, hrly)
+        text = format_cycle_day_extended(loc.city_name, hrly, today_loc)
         button = InlineKeyboardButton(
             "Show compact ▲",
             callback_data=f"cycle:compact:{loc.id}:{date_str}",
         )
     else:
-        text = format_cycle_day_compact(loc.city_name, hrly)
+        text = format_cycle_day_compact(loc.city_name, hrly, today_loc)
         button = InlineKeyboardButton(
             "Show extended ▼",
             callback_data=f"cycle:extended:{loc.id}:{date_str}",

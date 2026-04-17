@@ -8,8 +8,6 @@ from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import forecast
 import formatters
 
-TZ = ZoneInfo("America/Los_Angeles")
-
 _DAY_RE = re.compile(
     r"\b(next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow)\b",
     re.IGNORECASE,
@@ -33,28 +31,27 @@ def resolve_location(context, city_arg=None):
     return locs[0], None
 
 
-def _now_hour():
-    return datetime.now(TZ).replace(minute=0, second=0, microsecond=0, tzinfo=None)
+def _now_hour(loc):
+    return datetime.now(ZoneInfo(loc.timezone)).replace(minute=0, second=0, microsecond=0, tzinfo=None)
 
 
-def _next_weekday(weekday):
-    today = date.today()
+def _next_weekday(weekday, today):
     days = (weekday - today.weekday()) % 7
     return today + timedelta(days or 7)
 
 
-def _parse_forecast_args(args):
+def _parse_forecast_args(args, today):
     text = " ".join(args)
     m = _DAY_RE.search(text)
     if not m:
-        return text.strip() or None, date.today() + timedelta(1)
+        return text.strip() or None, today + timedelta(1)
     day_str = m.group(2).lower()
     is_next = bool(m.group(1))
     city = " ".join(_DAY_RE.sub("", text).split()) or None
     if day_str == "tomorrow":
-        target_date = date.today() + timedelta(1)
+        target_date = today + timedelta(1)
     else:
-        target_date = _next_weekday(_WEEKDAYS.index(day_str))
+        target_date = _next_weekday(_WEEKDAYS.index(day_str), today)
         if is_next:
             target_date += timedelta(7)
     return city, target_date
@@ -109,10 +106,11 @@ async def today_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if err:
         await update.message.reply_text(err)
         return
-    hourly = await forecast.get_hourly(loc, date.today())
-    now = _now_hour()
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
+    hourly = await forecast.get_hourly(loc, today_loc)
+    now = _now_hour(loc)
     hourly.rows = {dt: row for dt, row in hourly.rows.items() if dt >= now}
-    text = formatters.format_hourly_compact(_loc_name(loc), hourly)
+    text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
     button = InlineKeyboardButton("Show extended ▼", callback_data=f"today:extended:{loc.id}")
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
@@ -127,26 +125,30 @@ async def today_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not loc:
         await query.edit_message_text("Location no longer saved.")
         return
-    hourly = await forecast.get_hourly(loc, date.today())
-    now = _now_hour()
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
+    hourly = await forecast.get_hourly(loc, today_loc)
+    now = _now_hour(loc)
     hourly.rows = {dt: row for dt, row in hourly.rows.items() if dt >= now}
     if view == "extended":
-        text = formatters.format_hourly_extended(_loc_name(loc), hourly)
+        text = formatters.format_hourly_extended(_loc_name(loc), hourly, today_loc)
         button = InlineKeyboardButton("Show compact ▲", callback_data=f"today:compact:{loc.id}")
     else:
-        text = formatters.format_hourly_compact(_loc_name(loc), hourly)
+        text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
         button = InlineKeyboardButton("Show extended ▼", callback_data=f"today:extended:{loc.id}")
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
 
 async def forecast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    city_arg, target_date = _parse_forecast_args(context.args)
+    # First pass: extract city only to resolve location and get its timezone
+    city_arg, _ = _parse_forecast_args(context.args, date.today())
     loc, err = resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
+    _, target_date = _parse_forecast_args(context.args, today_loc)
     hourly = await forecast.get_hourly(loc, target_date)
-    text = formatters.format_hourly_compact(_loc_name(loc), hourly)
+    text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
     button = InlineKeyboardButton(
         "Show extended ▼",
         callback_data=f"forecast:extended:{loc.id}:{target_date.isoformat()}",
@@ -164,16 +166,17 @@ async def forecast_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not loc:
         await query.edit_message_text("Location no longer saved.")
         return
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     target_date = date.fromisoformat(date_str)
     hourly = await forecast.get_hourly(loc, target_date)
     if view == "extended":
-        text = formatters.format_hourly_extended(_loc_name(loc), hourly)
+        text = formatters.format_hourly_extended(_loc_name(loc), hourly, today_loc)
         button = InlineKeyboardButton(
             "Show compact ▲",
             callback_data=f"forecast:compact:{loc.id}:{date_str}",
         )
     else:
-        text = formatters.format_hourly_compact(_loc_name(loc), hourly)
+        text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
         button = InlineKeyboardButton(
             "Show extended ▼",
             callback_data=f"forecast:extended:{loc.id}:{date_str}",

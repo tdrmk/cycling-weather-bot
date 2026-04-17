@@ -6,8 +6,6 @@ import httpx
 
 from .models import Location, HourlyForecast, HourlyRow, WeekForecast, DailyRow
 
-TZ = ZoneInfo("America/Los_Angeles")
-
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -61,11 +59,13 @@ async def geocode(city: str) -> list[Location]:
             country=result.get("country_code", ""),
             lat=result["latitude"],
             lon=result["longitude"],
+            timezone=result["timezone"],
         ) for result in results]
 
 
 async def get_now(loc: Location) -> HourlyForecast:
-    now_hour = datetime.now(TZ).strftime("%Y-%m-%dT%H:00")
+    tz = ZoneInfo(loc.timezone)
+    now_hour = datetime.now(tz).strftime("%Y-%m-%dT%H:00")
 
     async with httpx.AsyncClient() as client:
         weather, aqi = await asyncio.gather(
@@ -76,14 +76,14 @@ async def get_now(loc: Location) -> HourlyForecast:
                 "daily": "sunrise,sunset",
                 "temperature_unit": "celsius",
                 "wind_speed_unit": "mph",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": 1,
             }),
             client.get(AIR_QUALITY_URL, params={
                 "latitude": loc.lat,
                 "longitude": loc.lon,
                 "hourly": "us_aqi",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": 1,
             }),
         )
@@ -94,7 +94,8 @@ async def get_now(loc: Location) -> HourlyForecast:
 
 
 async def get_hourly(loc: Location, target_date: date) -> HourlyForecast:
-    days_ahead = (target_date - date.today()).days + 1
+    today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
+    days_ahead = (target_date - today_loc).days + 1
 
     async with httpx.AsyncClient() as client:
         weather, aqi = await asyncio.gather(
@@ -105,14 +106,14 @@ async def get_hourly(loc: Location, target_date: date) -> HourlyForecast:
                 "daily": "sunrise,sunset",
                 "temperature_unit": "celsius",
                 "wind_speed_unit": "mph",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": days_ahead,
             }),
             client.get(AIR_QUALITY_URL, params={
                 "latitude": loc.lat,
                 "longitude": loc.lon,
                 "hourly": "us_aqi",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": min(days_ahead, 7),  # AQI API caps at 7 days
             }),
         )
@@ -131,14 +132,14 @@ async def get_week(loc: Location) -> WeekForecast:
                 "daily": DAILY_FIELDS,
                 "temperature_unit": "celsius",
                 "wind_speed_unit": "mph",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": 7,
             }),
             client.get(AIR_QUALITY_URL, params={
                 "latitude": loc.lat,
                 "longitude": loc.lon,
                 "hourly": "us_aqi",
-                "timezone": TZ.key,
+                "timezone": loc.timezone,
                 "forecast_days": 7,
             }),
         )

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 import labels as l
 
@@ -20,8 +20,7 @@ def _compact_week_row(d, row, condition_emoji):
     return f"`{d.strftime('%a %-d'):<6} {condition_emoji} {row.temp_high:>2.0f}/{row.temp_low:>2.0f} {prob:>2}/{mm} {row.wind:>2.0f} {row.uv:>2.0f}`"
 
 
-def _date_label(target_date):
-    today = date.today()
+def _date_label(target_date, today):
     if target_date == today:
         return f"Today ({target_date.strftime('%a %b %-d')})"
     elif target_date == today + timedelta(days=1):
@@ -48,7 +47,7 @@ def format_now(loc_name, forecast):
     return "\n".join(lines)
 
 
-def format_hourly_compact(loc_name, forecast):
+def format_hourly_compact(loc_name, forecast, today):
     sunrise_str = forecast.sunrise.strftime("%-I:%M %p")
     sunset_str = forecast.sunset.strftime("%-I:%M %p")
 
@@ -60,14 +59,14 @@ def format_hourly_compact(loc_name, forecast):
 
     return "\n".join([
         f"📍 *{loc_name}*",
-        _date_label(forecast.date),
+        _date_label(forecast.date, today),
         f"🌅 {sunrise_str}   🌇 {sunset_str}",
         "",
         "`        °C    %/mm mph UV`",
     ] + rows)
 
 
-def format_hourly_extended(loc_name, forecast):
+def format_hourly_extended(loc_name, forecast, today):
     sunrise_str = forecast.sunrise.strftime("%-I:%M %p")
     sunset_str = forecast.sunset.strftime("%-I:%M %p")
 
@@ -90,7 +89,7 @@ def format_hourly_extended(loc_name, forecast):
 
     return "\n".join([
         f"📍 *{loc_name}*",
-        _date_label(forecast.date),
+        _date_label(forecast.date, today),
         f"🌅 {sunrise_str}   🌇 {sunset_str}",
         "",
     ] + [b + "\n" for b in blocks]).rstrip()
