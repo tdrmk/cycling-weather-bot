@@ -28,39 +28,27 @@ sudo useradd --system --no-create-home --shell /usr/sbin/nologin cyclebot
 ## 4. Clone the repo and build the virtual environment
 
 ```bash
-git clone https://github.com/tdrmk/cycling-weather-bot /path/to/cycling-weather-bot
-cd /path/to/cycling-weather-bot
+git clone https://github.com/tdrmk/cycling-weather-bot /opt/cycling-weather-bot
+cd /opt/cycling-weather-bot
 uv sync
 ```
 
 After any dependency changes, re-run `uv sync` and restart the service.
 
-## 5. Create the data directory
+## 5. Create the .env file
 
 ```bash
-mkdir -p /path/to/cycling-weather-bot/data
+echo "TOKEN=your-telegram-bot-token" > /opt/cycling-weather-bot/.env
 ```
 
 ## 6. Set directory permissions
 
-The repo is owned by you but readable by `cyclebot`. Only `data/` is writable by `cyclebot`.
-
 ```bash
-sudo chown -R youruser:cyclebot /path/to/cycling-weather-bot
-sudo chmod -R g+rX /path/to/cycling-weather-bot
-sudo chown cyclebot:cyclebot /path/to/cycling-weather-bot/data
+sudo chown -R cyclebot:cyclebot /opt/cycling-weather-bot
+sudo chmod 600 /opt/cycling-weather-bot/.env
 ```
 
-## 7. Set .env permissions
-
-`TOKEN` must be readable by `cyclebot` but not by other users.
-
-```bash
-sudo chown youruser:cyclebot /path/to/cycling-weather-bot/.env
-sudo chmod 640 /path/to/cycling-weather-bot/.env
-```
-
-## 8. Create the service file
+## 7. Create the service file
 
 Create `/etc/systemd/system/cycling-weather-bot.service`:
 
@@ -73,9 +61,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=cyclebot
-WorkingDirectory=/path/to/cycling-weather-bot
-EnvironmentFile=/path/to/cycling-weather-bot/.env
-ExecStart=/path/to/cycling-weather-bot/.venv/bin/python src/main.py
+WorkingDirectory=/opt/cycling-weather-bot
+EnvironmentFile=/opt/cycling-weather-bot/.env
+ExecStart=/opt/cycling-weather-bot/.venv/bin/python src/main.py
 Restart=on-failure
 RestartSec=10
 
@@ -83,7 +71,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-## 9. Enable and start
+## 8. Enable and start
 
 ```bash
 sudo systemctl daemon-reload
@@ -91,7 +79,7 @@ sudo systemctl enable cycling-weather-bot
 sudo systemctl start cycling-weather-bot
 ```
 
-## 10. Verify
+## 9. Verify
 
 ```bash
 sudo systemctl status cycling-weather-bot
@@ -104,6 +92,7 @@ sudo systemctl status cycling-weather-bot
 journalctl -u cycling-weather-bot -f
 
 # Restart after pulling new code
+cd /opt/cycling-weather-bot
 uv sync
 sudo systemctl restart cycling-weather-bot
 
