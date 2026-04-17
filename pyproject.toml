@@ -3,7 +3,6 @@ name = "cycling-weather-bot"
 version = "0.1.0"
 description = "Telegram bot for cycling-specific weather forecasts"
 readme = "README.md"
-requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
     "python-dotenv>=1.2.2",
