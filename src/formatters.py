@@ -1,5 +1,4 @@
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
 import labels as l
 
@@ -30,23 +29,21 @@ def _date_label(target_date, today):
 
 
 def format_now(loc, forecast):
-    dt, row = next(iter(forecast.rows.items()))
-    night = _is_night(dt, forecast.sunrise, forecast.sunset)
-    label, condition_emoji = l.wmo(row.wmo_code, night)
-    tz_abbr = dt.replace(tzinfo=ZoneInfo(loc.timezone)).strftime("%Z")
+    label, condition_emoji = l.wmo(forecast.wmo_code, not forecast.is_day)
+    tz_abbr = forecast.dt.strftime("%Z")
     lines = [
         f"📍 *{loc.city_name}*",
-        dt.strftime("%-I %p") + f" {tz_abbr}",
-        f"{condition_emoji} {label} ({row.cloud}% clouds)",
-        f"🌡 {row.temp:.0f}°C  (feels {row.feels:.0f}°C)",
-        f"💧 Humidity {row.humidity}%",
-        f"☀️ UV {row.uv:.0f} ({l.uv_label(row.uv)})",
-        f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.0f}mm",
-        f"💨 {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} {l.beaufort_label(row.wind)} (gusts {row.gusts:.0f}mph)",
-        f"👁 {row.visibility / 1000:.0f}km",
+        forecast.dt.strftime("%-I:%M %p") + f" {tz_abbr}",
+        f"{condition_emoji} {label} ({forecast.cloud}% clouds)",
+        f"🌡 {forecast.temp:.1f}°C  (feels {forecast.feels:.1f}°C)",
+        f"💧 Humidity {forecast.humidity}%",
+        f"☀️ UV {forecast.uv:.1f} ({l.uv_label(forecast.uv)})",
+        f"🌧 Rain {forecast.rain_mm:.1f}mm",
+        f"💨 {forecast.wind:.0f}mph {l.wind_cardinal(forecast.wind_direction)} {l.beaufort_label(forecast.wind)} (gusts {forecast.gusts:.0f}mph)",
+        f"👁 {forecast.visibility / 1000:.0f}km",
     ]
-    if row.aqi is not None:
-        lines.append(f"😷 AQI {row.aqi} ({l.aqi_label(row.aqi)})")
+    if forecast.aqi is not None:
+        lines.append(f"😷 AQI {forecast.aqi} ({l.aqi_label(forecast.aqi)})")
     return "\n".join(lines)
 
 
@@ -80,11 +77,11 @@ def format_hourly_extended(loc_name, forecast, today):
         hour_str = dt.strftime("%-I%p")
         block = [
             f"*{hour_str}*",
-            f"🌡 {row.temp:.0f}°C (feels {row.feels:.0f}°C)  💧 {row.humidity}%",
+            f"🌡 {row.temp:.1f}°C (feels {row.feels:.1f}°C)  💧 {row.humidity}%",
             f"{condition_emoji} {label} ({row.cloud}% clouds)  👁 {row.visibility / 1000:.0f}km",
-            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.0f}mm",
+            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
             f"💨 {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} {l.beaufort_label(row.wind)} (gusts {row.gusts:.0f}mph)",
-            f"☀️ UV {row.uv:.0f} ({l.uv_label(row.uv)})",
+            f"☀️ UV {row.uv:.1f} ({l.uv_label(row.uv)})",
         ]
         if row.aqi is not None:
             block.append(f"😷 AQI {row.aqi} ({l.aqi_label(row.aqi)})")
@@ -131,10 +128,10 @@ def format_week_extended(loc_name, week):
         block = [
             f"*{d.strftime('%a %b %-d')}*",
             f"{condition_emoji} {label}",
-            f"🌡 {row.temp_high:.0f}°C / {row.temp_low:.0f}°C (feels {row.feels_high:.0f}°C / {row.feels_low:.0f}°C)",
-            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.0f}mm",
+            f"🌡 {row.temp_high:.1f}°C / {row.temp_low:.1f}°C (feels {row.feels_high:.1f}°C / {row.feels_low:.1f}°C)",
+            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
             f"💨 {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} (gusts {row.wind_gusts:.0f}mph)",
-            f"☀️ UV {row.uv:.0f} ({l.uv_label(row.uv)})",
+            f"☀️ UV {row.uv:.1f} ({l.uv_label(row.uv)})",
         ]
         if row.aqi is not None:
             block.append(f"😷 AQI {row.aqi} ({l.aqi_label(row.aqi)})")

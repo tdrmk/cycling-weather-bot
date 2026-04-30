@@ -4,11 +4,26 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from .models import Location, HourlyForecast, HourlyRow, WeekForecast, DailyRow
+from .models import Location, CurrentForecast, HourlyForecast, HourlyRow, WeekForecast, DailyRow
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+
+CURRENT_FIELDS = ",".join([
+    "is_day",
+    "temperature_2m",
+    "apparent_temperature",
+    "relative_humidity_2m",
+    "precipitation",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "uv_index",
+    "weather_code",
+    "cloud_cover",
+    "visibility",
+])
 
 HOURLY_FIELDS = ",".join([
     "temperature_2m",
@@ -63,21 +78,16 @@ async def geocode(city: str) -> list[Location]:
         ) for result in results]
 
 
-async def get_now(loc: Location) -> HourlyForecast:
-    tz = ZoneInfo(loc.timezone)
-    now_hour = datetime.now(tz).strftime("%Y-%m-%dT%H:00")
-
+async def get_now(loc: Location) -> CurrentForecast:
     async with httpx.AsyncClient() as client:
         weather, aqi = await asyncio.gather(
             client.get(FORECAST_URL, params={
                 "latitude": loc.lat,
                 "longitude": loc.lon,
-                "hourly": HOURLY_FIELDS,
-                "daily": "sunrise,sunset",
+                "current": CURRENT_FIELDS,
                 "temperature_unit": "celsius",
                 "wind_speed_unit": "mph",
                 "timezone": loc.timezone,
-                "forecast_days": 1,
             }),
             client.get(AIR_QUALITY_URL, params={
                 "latitude": loc.lat,
@@ -90,7 +100,7 @@ async def get_now(loc: Location) -> HourlyForecast:
         weather.raise_for_status()
         aqi.raise_for_status()
 
-    return _parse_now(weather.json(), aqi.json()["hourly"], now_hour)
+    return _parse_now(weather.json(), aqi.json()["hourly"], loc.timezone)
 
 
 async def get_hourly(loc: Location, target_date: date) -> HourlyForecast:
@@ -174,19 +184,26 @@ def _make_hourly_row(hourly, aqi_by_time, i):
     )
 
 
-def _parse_now(data, aqi_hourly, now_hour):
-    hourly = data["hourly"]
-    daily = data["daily"]
-    i = hourly["time"].index(now_hour)
-    dt = datetime.fromisoformat(now_hour)
-    today = dt.date().isoformat()
-    day_idx = daily["time"].index(today)
+def _parse_now(data, aqi_hourly, timezone) -> CurrentForecast:
+    current = data["current"]
+    dt = datetime.fromisoformat(current["time"]).replace(tzinfo=ZoneInfo(timezone))
+    now_hour = dt.strftime("%Y-%m-%dT%H:00")
     aqi_by_time = dict(zip(aqi_hourly["time"], aqi_hourly["us_aqi"]))
-    return HourlyForecast(
-        date=dt.date(),
-        sunrise=_parse_time(daily["sunrise"][day_idx]),
-        sunset=_parse_time(daily["sunset"][day_idx]),
-        rows={dt: _make_hourly_row(hourly, aqi_by_time, i)},
+    return CurrentForecast(
+        dt=dt,
+        is_day=bool(current["is_day"]),
+        temp=current["temperature_2m"],
+        feels=current["apparent_temperature"],
+        humidity=current["relative_humidity_2m"],
+        wmo_code=current["weather_code"],
+        cloud=current["cloud_cover"],
+        visibility=current["visibility"],
+        rain_mm=current["precipitation"],
+        wind=current["wind_speed_10m"],
+        wind_direction=current["wind_direction_10m"],
+        gusts=current["wind_gusts_10m"],
+        uv=current["uv_index"],
+        aqi=aqi_by_time.get(now_hour),
     )
 
 

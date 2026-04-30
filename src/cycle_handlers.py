@@ -164,10 +164,10 @@ def _rain_note(mm, prob):
 
 def _uv_line(uv):
     if uv < 3:  return None
-    if uv < 6:  return f"☀️ UV {uv:.0f} — Moderate — sunscreen recommended"
-    if uv < 8:  return f"☀️ UV {uv:.0f} — High — sunscreen essential"
-    if uv < 11: return f"☀️ UV {uv:.0f} — Very High — full protection, cover up"
-    return f"☀️ UV {uv:.0f} — Extreme — reapply mid-ride"
+    if uv < 6:  return f"☀️ UV {uv:.1f} — Moderate — sunscreen recommended"
+    if uv < 8:  return f"☀️ UV {uv:.1f} — High — sunscreen essential"
+    if uv < 11: return f"☀️ UV {uv:.1f} — Very High — full protection, cover up"
+    return f"☀️ UV {uv:.1f} — Extreme — reapply mid-ride"
 
 
 def _visibility_line(vis):
@@ -221,7 +221,7 @@ def format_cycle(loc_name, hrly, period, today):
         lines.append(f"{cond_emoji} {label}")
 
         # Temp
-        lines.append(f"🌡 {row.temp:.0f}°C / feels {row.feels:.0f}°C{_temp_note(row.feels)}")
+        lines.append(f"🌡 {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}")
 
         # Wind
         cardinal = l.wind_cardinal(row.wind_direction)
@@ -232,7 +232,7 @@ def format_cycle(loc_name, hrly, period, today):
         lines.append(wind_line)
 
         # Rain
-        lines.append(f"☔ {row.rain_prob}% / {row.rain_mm:.0f}mm{_rain_note(row.rain_mm, row.rain_prob)}")
+        lines.append(f"☔ {row.rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, row.rain_prob)}")
 
         # UV (skip when low)
         uv = _uv_line(row.uv)

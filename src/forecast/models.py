@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 
 
 @dataclass
@@ -11,6 +11,24 @@ class Location:
     lat: float      # degrees
     lon: float      # degrees
     timezone: str = "America/Los_Angeles"
+
+
+@dataclass
+class CurrentForecast:
+    dt: datetime
+    is_day: bool
+    temp: float             # °C
+    feels: float            # °C
+    humidity: int           # %
+    wmo_code: int
+    cloud: int              # %
+    visibility: float       # metres
+    rain_mm: float          # mm
+    wind: float             # mph
+    wind_direction: float   # degrees
+    gusts: float            # mph
+    uv: float               # index
+    aqi: int | None         # US AQI
 
 
 @dataclass
