@@ -292,7 +292,7 @@ def format_cycle_now(loc_name, row):
 
     verdict, reason = _cycle_verdict(row, is_dark=dark)
 
-    hour_str = row.dt.strftime("%-I%p")
+    hour_str = row.dt.strftime("%-I:%M %p %Z")
     header = f"{hour_str} — {_VERDICT_EMOJI[verdict]} {verdict}"
     if reason:
         header += f" — {reason}"

@@ -30,10 +30,9 @@ def _date_label(target_date, today):
 
 def format_now(loc, forecast):
     label, condition_emoji = l.wmo(forecast.wmo_code, not forecast.is_day)
-    tz_abbr = forecast.dt.strftime("%Z")
     lines = [
         f"📍 *{loc.city_name}*",
-        forecast.dt.strftime("%-I:%M %p") + f" {tz_abbr}",
+        forecast.dt.strftime("%-I:%M %p %Z"),
         f"{condition_emoji} {label} ({forecast.cloud}% clouds)",
         f"🌡 {forecast.temp:.1f}°C  (feels {forecast.feels:.1f}°C)",
         f"💧 Humidity {forecast.humidity}%",
