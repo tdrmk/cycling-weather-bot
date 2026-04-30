@@ -98,7 +98,7 @@ def _cycle_verdict(row, is_dark=False):
     if row.wind >= 20:                                reasons.append(("Tough", "strong wind"))
     if row.gusts >= 30:                               reasons.append(("Tough", "strong gusts"))
     if row.rain_mm >= 3:                              reasons.append(("Tough", "heavy rain"))
-    if row.rain_prob >= 75 and row.rain_mm >= 1:      reasons.append(("Tough", "rain"))
+    if getattr(row, 'rain_prob', 0) >= 75 and row.rain_mm >= 1: reasons.append(("Tough", "rain"))
     if row.aqi is not None and 151 <= row.aqi < 201:  reasons.append(("Tough", "AQI unhealthy"))
     if row.wmo_code in {75, 77}:                      reasons.append(("Tough", "heavy snow"))
     if row.feels < 7:                                 reasons.append(("Tough", "very cold"))
@@ -109,7 +109,7 @@ def _cycle_verdict(row, is_dark=False):
     if row.wind >= 13:                                reasons.append(("Manageable", "wind"))
     if row.gusts >= 20:                               reasons.append(("Manageable", "gusty"))
     if row.rain_mm >= 1:                              reasons.append(("Manageable", "rain"))
-    if row.rain_prob >= 60:                           reasons.append(("Manageable", "rain likely"))
+    if getattr(row, 'rain_prob', 0) >= 60:               reasons.append(("Manageable", "rain likely"))
     if row.aqi is not None and 101 <= row.aqi < 151:  reasons.append(("Manageable", "poor air"))
     if row.wmo_code in {71, 73}:                      reasons.append(("Manageable", "snow"))
     if row.feels < 10:                                reasons.append(("Manageable", "cold"))
@@ -287,6 +287,48 @@ def format_cycle_day_extended(loc_name, hrly, today):
     )
 
 
+def format_cycle_now(loc_name, row):
+    dark = not row.is_day
+
+    verdict, reason = _cycle_verdict(row, is_dark=dark)
+
+    hour_str = row.dt.strftime("%-I%p")
+    header = f"{hour_str} — {_VERDICT_EMOJI[verdict]} {verdict}"
+    if reason:
+        header += f" — {reason}"
+
+    label, cond_emoji = l.wmo(row.wmo_code, is_night=dark)
+    cardinal = l.wind_cardinal(row.wind_direction)
+    beaufort = l.beaufort_label(row.wind)
+
+    lines = [
+        f"📍 *{loc_name}*",
+        header,
+        f"{cond_emoji} {label}",
+        f"🌡 {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
+    ]
+
+    wind_line = f"💨 {row.wind:.0f}mph {cardinal} — {beaufort}"
+    if row.gusts >= row.wind + 10:
+        wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
+    lines.append(wind_line)
+
+    lines.append(f"☔ {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, 100 if row.rain_mm > 0 else 0)}")
+
+    uv = _uv_line(row.uv)
+    if uv:
+        lines.append(uv)
+
+    vis = _visibility_line(row.visibility)
+    if vis:
+        lines.append(vis)
+
+    if row.aqi is not None:
+        lines.append(f"😷 AQI {row.aqi} — {l.aqi_label(row.aqi)}")
+
+    return "\n".join(lines)
+
+
 # --- Handler ---
 
 async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -342,6 +384,17 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
+async def cyclenow_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    city_arg = " ".join(context.args).strip() or None
+    loc, err = resolve_location(context, city_arg)
+    if err:
+        await update.message.reply_text(err)
+        return
+    result = await forecast.get_now(loc)
+    text = format_cycle_now(loc.city_name, result)
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
 async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -372,7 +425,11 @@ async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 cycle_handlers = [
     CommandHandler("cycle", cycle_cmd),
+    CommandHandler("cyclenow", cyclenow_cmd),
     CallbackQueryHandler(cycle_toggle, pattern=r"^cycle:"),
 ]
 
-commands = [("cycle", "Cycling breakdown with verdict")]
+commands = [
+    ("cycle", "Cycling breakdown with verdict"),
+    ("cyclenow", "Cycling verdict for right now"),
+]
