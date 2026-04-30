@@ -36,6 +36,10 @@ async def log_update(update: Update, _context):
         print(f"[callback] {who}: {update.callback_query.data!r}")
 
 
+async def log_error(_update, context):
+    print(f"[error] {type(context.error).__name__}: {context.error}")
+
+
 if __name__ == "__main__":
     Path("data").mkdir(exist_ok=True)
     persistence = PicklePersistence(filepath="data/bot_data")
@@ -44,6 +48,7 @@ if __name__ == "__main__":
     # TypeHandler(Update) matches every update type, so this logs everything
     # without interfering with normal handler dispatch.
     app.add_handler(TypeHandler(Update, log_update), group=-1)
+    app.add_error_handler(log_error)
     for h in bot_handlers:
         app.add_handler(h)
     for h in location_handlers:
