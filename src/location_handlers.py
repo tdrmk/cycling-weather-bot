@@ -68,6 +68,11 @@ async def add_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def add_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Cancelled. Use /add <city> to try again.")
+    return ConversationHandler.END
+
+
 async def locations_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     locs = context.user_data.get("locations", [])
     if not locs:
@@ -116,7 +121,7 @@ location_handlers = [
             WAITING_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_receive_city)],
             WAITING_PICK: [CallbackQueryHandler(add_pick, pattern="^add:")],
         },
-        fallbacks=[],
+        fallbacks=[MessageHandler(filters.COMMAND, add_cancel)],
         conversation_timeout=60,
     ),
     CommandHandler(["remove", "removelocation"], remove_start),
