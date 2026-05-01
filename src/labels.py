@@ -83,3 +83,39 @@ def aqi_label(aqi):
     if aqi <= 200: return "Unhealthy"
     if aqi <= 300: return "Very unhealthy"
     return "Hazardous"
+
+
+def temp_emoji(feels):
+    if feels < 10: return "🥶"
+    if feels <= 25: return "🌡"
+    return "🔥"
+
+
+def rain_emoji(mm):
+    if mm == 0:  return "🌂"
+    if mm < 3:   return "☂️"
+    return "🌧"
+
+
+def wind_emoji(mph):
+    if mph < 13: return "🍃"
+    return "💨"
+
+
+def visibility_emoji(vis):
+    if vis >= 2000: return "👁"
+    if vis >= 1000: return "😶‍🌫️"
+    return "🌫"
+
+
+def uv_emoji(uv):
+    if uv < 3: return "⛅"
+    if uv <= 6: return "🌤"
+    return "☀️"
+
+
+def aqi_emoji(aqi):
+    if aqi <= 50:  return "😊"
+    if aqi <= 100: return "😐"
+    if aqi <= 200: return "😷"
+    return "☠️"
