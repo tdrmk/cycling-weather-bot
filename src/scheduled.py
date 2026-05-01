@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 
 import forecast
 import formatters
+from utils import retry
 
 
 async def send_daily_forecast(context: ContextTypes.DEFAULT_TYPE):
@@ -23,9 +24,10 @@ async def send_daily_forecast(context: ContextTypes.DEFAULT_TYPE):
     today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     tomorrow = today_loc + timedelta(1)
     try:
-        hourly = await forecast.get_hourly(loc, tomorrow)
+        get_hourly = retry()(forecast.get_hourly)
+        hourly = await get_hourly(loc, tomorrow)
     except Exception as e:
-        print(f"[scheduler] forecast fetch failed for user {user_id}: {e}")
+        print(f"[scheduler] forecast fetch failed for user {user_id}: {repr(e)}")
         return
 
     text = formatters.format_hourly_compact(loc.city_name, hourly, today_loc)
@@ -42,7 +44,7 @@ async def send_daily_forecast(context: ContextTypes.DEFAULT_TYPE):
         )
         print(f"[scheduler] sent daily forecast to user {user_id} for {loc.city_name}")
     except Exception as e:
-        print(f"[scheduler] send failed for user {user_id}: {e}")
+        print(f"[scheduler] send failed for user {user_id}: {repr(e)}")
 
 
 def _job_name(user_id, loc_id):
