@@ -164,18 +164,20 @@ def _rain_note(mm, prob):
 
 def _uv_line(uv):
     if uv < 3:  return None
-    if uv < 6:  return f"☀️ UV {uv:.1f} — Moderate — sunscreen recommended"
-    if uv < 8:  return f"☀️ UV {uv:.1f} — High — sunscreen essential"
-    if uv < 11: return f"☀️ UV {uv:.1f} — Very High — full protection, cover up"
-    return f"☀️ UV {uv:.1f} — Extreme — reapply mid-ride"
+    emoji = l.uv_emoji(uv)
+    if uv < 6:  return f"{emoji} UV {uv:.1f} — Moderate — sunscreen recommended"
+    if uv < 8:  return f"{emoji} UV {uv:.1f} — High — sunscreen essential"
+    if uv < 11: return f"{emoji} UV {uv:.1f} — Very High — full protection, cover up"
+    return f"{emoji} UV {uv:.1f} — Extreme — reapply mid-ride"
 
 
 def _visibility_line(vis):
     if vis >= 5000: return None
     km = f"{vis / 1000:.1f}".rstrip("0").rstrip(".")
-    if vis >= 2000: return f"👁 {km}km — Mist — use lights"
-    if vis >= 1000: return f"👁 {km}km — Fog — stay off busy roads"
-    return f"👁 {km}km — Dense fog — don't ride"
+    emoji = l.visibility_emoji(vis)
+    if vis >= 2000: return f"{emoji} {km}km — Mist — use lights"
+    if vis >= 1000: return f"{emoji} {km}km — Fog — stay off busy roads"
+    return f"{emoji} {km}km — Dense fog — don't ride"
 
 
 def _is_dark(dt, sunrise, sunset):
@@ -221,18 +223,18 @@ def format_cycle(loc_name, hrly, period, today):
         lines.append(f"{cond_emoji} {label}")
 
         # Temp
-        lines.append(f"🌡 {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}")
+        lines.append(f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}")
 
         # Wind
         cardinal = l.wind_cardinal(row.wind_direction)
         beaufort = l.beaufort_label(row.wind)
-        wind_line = f"💨 {row.wind:.0f}mph {cardinal} — {beaufort}"
+        wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
         if row.gusts >= row.wind + 10:
             wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
         lines.append(wind_line)
 
         # Rain
-        lines.append(f"☔ {row.rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, row.rain_prob)}")
+        lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, row.rain_prob)}")
 
         # UV (skip when low)
         uv = _uv_line(row.uv)
@@ -246,7 +248,7 @@ def format_cycle(loc_name, hrly, period, today):
 
         # AQI
         if row.aqi is not None:
-            lines.append(f"😷 AQI {row.aqi} — {l.aqi_label(row.aqi)}")
+            lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
 
         lines.append("")
 
@@ -305,15 +307,15 @@ def format_cycle_now(loc_name, row):
         f"📍 *{loc_name}*",
         header,
         f"{cond_emoji} {label}",
-        f"🌡 {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
+        f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
     ]
 
-    wind_line = f"💨 {row.wind:.0f}mph {cardinal} — {beaufort}"
+    wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
     if row.gusts >= row.wind + 10:
         wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
     lines.append(wind_line)
 
-    lines.append(f"☔ {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, 100 if row.rain_mm > 0 else 0)}")
+    lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, 100 if row.rain_mm > 0 else 0)}")
 
     uv = _uv_line(row.uv)
     if uv:
@@ -324,7 +326,7 @@ def format_cycle_now(loc_name, row):
         lines.append(vis)
 
     if row.aqi is not None:
-        lines.append(f"😷 AQI {row.aqi} — {l.aqi_label(row.aqi)}")
+        lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
 
     return "\n".join(lines)
 

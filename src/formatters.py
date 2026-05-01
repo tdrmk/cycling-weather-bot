@@ -34,15 +34,15 @@ def format_now(loc, forecast):
         f"📍 *{loc.city_name}*",
         forecast.dt.strftime("%-I:%M %p %Z"),
         f"{condition_emoji} {label} ({forecast.cloud}% clouds)",
-        f"🌡 {forecast.temp:.1f}°C  (feels {forecast.feels:.1f}°C)",
+        f"{l.temp_emoji(forecast.feels)} {forecast.temp:.1f}°C  (feels {forecast.feels:.1f}°C)",
         f"💧 Humidity {forecast.humidity}%",
-        f"☀️ UV {forecast.uv:.1f} ({l.uv_label(forecast.uv)})",
-        f"🌧 Rain {forecast.rain_mm:.1f}mm",
-        f"💨 {forecast.wind:.0f}mph {l.wind_cardinal(forecast.wind_direction)} {l.beaufort_label(forecast.wind)} (gusts {forecast.gusts:.0f}mph)",
-        f"👁 {forecast.visibility / 1000:.0f}km",
+        f"{l.uv_emoji(forecast.uv)} UV {forecast.uv:.1f} ({l.uv_label(forecast.uv)})",
+        f"{l.rain_emoji(forecast.rain_mm)} Rain {forecast.rain_mm:.1f}mm",
+        f"{l.wind_emoji(forecast.wind)} {forecast.wind:.0f}mph {l.wind_cardinal(forecast.wind_direction)} {l.beaufort_label(forecast.wind)} (gusts {forecast.gusts:.0f}mph)",
+        f"{l.visibility_emoji(forecast.visibility)} {forecast.visibility / 1000:.0f}km",
     ]
     if forecast.aqi is not None:
-        lines.append(f"😷 AQI {forecast.aqi} ({l.aqi_label(forecast.aqi)})")
+        lines.append(f"{l.aqi_emoji(forecast.aqi)} AQI {forecast.aqi} ({l.aqi_label(forecast.aqi)})")
     return "\n".join(lines)
 
 
@@ -76,14 +76,14 @@ def format_hourly_extended(loc_name, forecast, today):
         hour_str = dt.strftime("%-I%p")
         block = [
             f"*{hour_str}*",
-            f"🌡 {row.temp:.1f}°C (feels {row.feels:.1f}°C)  💧 {row.humidity}%",
-            f"{condition_emoji} {label} ({row.cloud}% clouds)  👁 {row.visibility / 1000:.0f}km",
-            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
-            f"💨 {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} {l.beaufort_label(row.wind)} (gusts {row.gusts:.0f}mph)",
-            f"☀️ UV {row.uv:.1f} ({l.uv_label(row.uv)})",
+            f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C (feels {row.feels:.1f}°C)  💧 {row.humidity}%",
+            f"{condition_emoji} {label} ({row.cloud}% clouds)  {l.visibility_emoji(row.visibility)} {row.visibility / 1000:.0f}km",
+            f"{l.rain_emoji(row.rain_mm)} Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
+            f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} {l.beaufort_label(row.wind)} (gusts {row.gusts:.0f}mph)",
+            f"{l.uv_emoji(row.uv)} UV {row.uv:.1f} ({l.uv_label(row.uv)})",
         ]
         if row.aqi is not None:
-            block.append(f"😷 AQI {row.aqi} ({l.aqi_label(row.aqi)})")
+            block.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} ({l.aqi_label(row.aqi)})")
         blocks.append("\n".join(block))
 
     return "\n".join([
@@ -127,13 +127,13 @@ def format_week_extended(loc_name, week):
         block = [
             f"*{d.strftime('%a %b %-d')}*",
             f"{condition_emoji} {label}",
-            f"🌡 {row.temp_high:.1f}°C / {row.temp_low:.1f}°C (feels {row.feels_high:.1f}°C / {row.feels_low:.1f}°C)",
-            f"🌧 Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
-            f"💨 {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} (gusts {row.wind_gusts:.0f}mph)",
-            f"☀️ UV {row.uv:.1f} ({l.uv_label(row.uv)})",
+            f"{l.temp_emoji(row.feels_high)} {row.temp_high:.1f}°C / {row.temp_low:.1f}°C (feels {row.feels_high:.1f}°C / {row.feels_low:.1f}°C)",
+            f"{l.rain_emoji(row.rain_mm)} Rain {row.rain_prob}% / {row.rain_mm:.1f}mm",
+            f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {l.wind_cardinal(row.wind_direction)} (gusts {row.wind_gusts:.0f}mph)",
+            f"{l.uv_emoji(row.uv)} UV {row.uv:.1f} ({l.uv_label(row.uv)})",
         ]
         if row.aqi is not None:
-            block.append(f"😷 AQI {row.aqi} ({l.aqi_label(row.aqi)})")
+            block.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} ({l.aqi_label(row.aqi)})")
         block.append(f"🌅 {sunrise_str}   🌇 {sunset_str}")
         blocks.append("\n".join(block))
 
