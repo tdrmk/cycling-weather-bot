@@ -14,6 +14,7 @@ from telegram.ext import Application, PicklePersistence, TypeHandler
 from location_handlers import location_handlers, commands as location_commands
 from weather_handlers import weather_handlers, commands as weather_commands
 from cycle_handlers import cycle_handlers, commands as cycle_commands
+from schedule_handlers import schedule_handlers, commands as schedule_commands
 from bot_handlers import bot_handlers
 from scheduled import register_jobs
 
@@ -23,7 +24,7 @@ TOKEN = os.getenv("TOKEN")
 
 
 async def post_init(app):
-    await app.bot.set_my_commands(location_commands + weather_commands + cycle_commands)
+    await app.bot.set_my_commands(location_commands + weather_commands + cycle_commands + schedule_commands)
     register_jobs(app)
 
 
@@ -56,6 +57,8 @@ if __name__ == "__main__":
     for h in weather_handlers:
         app.add_handler(h)
     for h in cycle_handlers:
+        app.add_handler(h)
+    for h in schedule_handlers:
         app.add_handler(h)
     print("Bot running")
     app.run_polling()
