@@ -2,13 +2,16 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 
 _COMMANDS = """
-/now — current conditions
-/today — hourly forecast for today
-/forecast [day] — hourly forecast for any day
-/week — 7-day summary
-/cycle [day] [period] — cycling-specific breakdown with verdict
-/cyclenow — cycling verdict for right now
-/schedule — manage daily forecast schedule"""
+/now [city] — current conditions
+/today [city] — hourly forecast for today
+/forecast [city] [day] — hourly forecast for any day
+/week [city] — 7-day summary
+/cycle [city] [day] [morning|noon|evening|night] — cycling breakdown with verdict
+/cyclenow [city] — cycling verdict for right now
+/schedule — manage daily forecast schedule
+/add [city] — add a location
+/remove — remove a saved location
+/locations — list saved locations"""
 
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -29,3 +32,5 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 bot_handlers = [CommandHandler("start", start_cmd)]
+
+commands = [("start", "Show all commands")]
