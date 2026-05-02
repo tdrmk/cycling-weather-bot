@@ -199,6 +199,34 @@ _VERDICT_EMOJI = {
 }
 
 
+def _format_hour_fields(row, rain_prob, dark):
+    label, cond_emoji = l.wmo(row.wmo_code, is_night=dark)
+    cardinal = l.wind_cardinal(row.wind_direction)
+    beaufort = l.beaufort_label(row.wind)
+    wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
+    if row.gusts >= row.wind + 10:
+        wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
+    if rain_prob is not None:
+        rain_line = f"{l.rain_emoji(row.rain_mm)} {rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, rain_prob)}"
+    else:
+        rain_line = f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, None)}"
+    lines = [
+        f"{cond_emoji} {label}",
+        f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
+        wind_line,
+        rain_line,
+    ]
+    uv = _uv_line(row.uv)
+    if uv:
+        lines.append(uv)
+    vis = _visibility_line(row.visibility)
+    if vis:
+        lines.append(vis)
+    if row.aqi is not None:
+        lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
+    return lines
+
+
 def format_cycle(loc_name, hrly, period, today):
     period_hours, period_label = PERIODS[period]
     rows = {dt: row for dt, row in hrly.rows.items() if dt.hour in period_hours}
@@ -221,39 +249,7 @@ def format_cycle(loc_name, hrly, period, today):
         if reason:
             header += f" — {reason}"
         lines.append(header)
-
-        # Condition
-        label, cond_emoji = l.wmo(row.wmo_code, is_night=dark)
-        lines.append(f"{cond_emoji} {label}")
-
-        # Temp
-        lines.append(f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}")
-
-        # Wind
-        cardinal = l.wind_cardinal(row.wind_direction)
-        beaufort = l.beaufort_label(row.wind)
-        wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
-        if row.gusts >= row.wind + 10:
-            wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
-        lines.append(wind_line)
-
-        # Rain
-        lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, row.rain_prob)}")
-
-        # UV (skip when low)
-        uv = _uv_line(row.uv)
-        if uv:
-            lines.append(uv)
-
-        # Visibility (skip when clear)
-        vis = _visibility_line(row.visibility)
-        if vis:
-            lines.append(vis)
-
-        # AQI
-        if row.aqi is not None:
-            lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
-
+        lines.extend(_format_hour_fields(row, row.rain_prob, dark))
         lines.append("")
 
     return "\n".join(lines).rstrip()
@@ -295,43 +291,13 @@ def format_cycle_day_extended(loc_name, hrly, today):
 
 def format_cycle_now(loc_name, row):
     dark = not row.is_day
-
     verdict, reason = _cycle_verdict(row, is_dark=dark)
-
     hour_str = row.dt.strftime("%-I:%M %p %Z")
     header = f"{hour_str} — {_VERDICT_EMOJI[verdict]} {verdict}"
     if reason:
         header += f" — {reason}"
-
-    label, cond_emoji = l.wmo(row.wmo_code, is_night=dark)
-    cardinal = l.wind_cardinal(row.wind_direction)
-    beaufort = l.beaufort_label(row.wind)
-
-    lines = [
-        f"📍 *{loc_name}*",
-        header,
-        f"{cond_emoji} {label}",
-        f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
-    ]
-
-    wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
-    if row.gusts >= row.wind + 10:
-        wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
-    lines.append(wind_line)
-
-    lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, None)}")
-
-    uv = _uv_line(row.uv)
-    if uv:
-        lines.append(uv)
-
-    vis = _visibility_line(row.visibility)
-    if vis:
-        lines.append(vis)
-
-    if row.aqi is not None:
-        lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
-
+    lines = [f"📍 *{loc_name}*", header]
+    lines.extend(_format_hour_fields(row, None, dark))
     return "\n".join(lines)
 
 
