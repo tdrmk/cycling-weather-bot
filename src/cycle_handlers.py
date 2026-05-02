@@ -145,25 +145,28 @@ def _cycle_verdict(row, is_dark=False):
 
 # --- Field helpers ---
 
-def _temp_note(feels):
-    if feels < 2:   return " — too cold, don't ride"
-    if feels < 7:   return " — very cold, full winter kit"
-    if feels < 10:  return " — cold, layer up"
-    if feels <= 25: return ""
-    if feels <= 30: return " — warm, stay hydrated"
-    if feels <= 35: return " — hot, shorten your ride"
-    return " — too hot, don't ride"
+def _temp_line(temp, feels):
+    if feels < 2:    note = " — too cold, don't ride"
+    elif feels < 7:  note = " — very cold, full winter kit"
+    elif feels < 10: note = " — cold, layer up"
+    elif feels <= 25: note = ""
+    elif feels <= 30: note = " — warm, stay hydrated"
+    elif feels <= 35: note = " — hot, shorten your ride"
+    else:            note = " — too hot, don't ride"
+    return f"{l.temp_emoji(feels)} {temp:.1f}°C / feels {feels:.1f}°C{note}"
 
 
-def _rain_note(mm, prob):
+def _rain_line(mm, prob):
     if prob is None:
-        if mm >= 5: return " — bring a jacket"
-        if mm >= 2: return " — light jacket recommended"
-        return ""
-    if mm >= 5 and prob >= 60:  return " — bring a jacket"
-    if prob >= 60 and mm < 2:   return " — possible light shower"
-    if mm >= 2 or prob >= 40:   return " — light jacket recommended"
-    return ""
+        if mm >= 5:  note = " — bring a jacket"
+        elif mm >= 2: note = " — light jacket recommended"
+        else:        note = ""
+        return f"{l.rain_emoji(mm)} {mm:.1f}mm{note}"
+    if mm >= 5 and prob >= 60:   note = " — bring a jacket"
+    elif prob >= 60 and mm < 2:  note = " — possible light shower"
+    elif mm >= 2 or prob >= 40:  note = " — light jacket recommended"
+    else:                        note = ""
+    return f"{l.rain_emoji(mm)} {prob}% / {mm:.1f}mm{note}"
 
 
 def _uv_line(uv):
@@ -184,6 +187,21 @@ def _visibility_line(vis):
     return f"{emoji} {km}km — Dense fog — don't ride"
 
 
+def _wind_line(mph, direction, gusts):
+    line = f"{l.wind_emoji(mph)} {mph:.0f}mph {l.wind_cardinal(direction)}"
+    if mph >= 35:   line += " — too strong to ride"
+    elif mph >= 20: line += " — strong, tiring into the wind"
+    elif mph >= 13: line += " — you'll feel it"
+    if gusts >= mph + 10:
+        line += f" — gusty, expect sideways push (gusts {gusts:.0f}mph)"
+    return line
+
+
+def _aqi_line(aqi):
+    if aqi is None: return None
+    return f"{l.aqi_emoji(aqi)} AQI {aqi} — {l.aqi_label(aqi)}"
+
+
 def _is_dark(dt, sunrise, sunset):
     t = dt.time()
     return t < sunrise or t >= sunset
@@ -199,31 +217,18 @@ _VERDICT_EMOJI = {
 }
 
 
-def _format_hour_fields(row, rain_prob, dark):
+def _format_hour_fields(row, dark):
     label, cond_emoji = l.wmo(row.wmo_code, is_night=dark)
-    cardinal = l.wind_cardinal(row.wind_direction)
-    beaufort = l.beaufort_label(row.wind)
-    wind_line = f"{l.wind_emoji(row.wind)} {row.wind:.0f}mph {cardinal} — {beaufort}"
-    if row.gusts >= row.wind + 10:
-        wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
-    if rain_prob is not None:
-        rain_line = f"{l.rain_emoji(row.rain_mm)} {rain_prob}% / {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, rain_prob)}"
-    else:
-        rain_line = f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, None)}"
-    lines = [
+    rain_prob = getattr(row, 'rain_prob', None)
+    lines = filter(None, [
         f"{cond_emoji} {label}",
-        f"{l.temp_emoji(row.feels)} {row.temp:.1f}°C / feels {row.feels:.1f}°C{_temp_note(row.feels)}",
-        wind_line,
-        rain_line,
-    ]
-    uv = _uv_line(row.uv)
-    if uv:
-        lines.append(uv)
-    vis = _visibility_line(row.visibility)
-    if vis:
-        lines.append(vis)
-    if row.aqi is not None:
-        lines.append(f"{l.aqi_emoji(row.aqi)} AQI {row.aqi} — {l.aqi_label(row.aqi)}")
+        _temp_line(row.temp, row.feels),
+        _wind_line(row.wind, row.wind_direction, row.gusts),
+        _rain_line(row.rain_mm, rain_prob),
+        _uv_line(row.uv),
+        _visibility_line(row.visibility),
+        _aqi_line(row.aqi),
+    ])
     return lines
 
 
@@ -249,7 +254,7 @@ def format_cycle(loc_name, hrly, period, today):
         if reason:
             header += f" — {reason}"
         lines.append(header)
-        lines.extend(_format_hour_fields(row, row.rain_prob, dark))
+        lines.extend(_format_hour_fields(row, dark))
         lines.append("")
 
     return "\n".join(lines).rstrip()
@@ -297,7 +302,7 @@ def format_cycle_now(loc_name, row):
     if reason:
         header += f" — {reason}"
     lines = [f"📍 *{loc_name}*", header]
-    lines.extend(_format_hour_fields(row, None, dark))
+    lines.extend(_format_hour_fields(row, dark))
     return "\n".join(lines)
 
 
