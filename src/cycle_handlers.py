@@ -156,6 +156,10 @@ def _temp_note(feels):
 
 
 def _rain_note(mm, prob):
+    if prob is None:
+        if mm >= 5: return " — bring a jacket"
+        if mm >= 2: return " — light jacket recommended"
+        return ""
     if mm >= 5 and prob >= 60:  return " — bring a jacket"
     if prob >= 60 and mm < 2:   return " — possible light shower"
     if mm >= 2 or prob >= 40:   return " — light jacket recommended"
@@ -315,7 +319,7 @@ def format_cycle_now(loc_name, row):
         wind_line += f" — gusty, expect sideways push (gusts {row.gusts:.0f}mph)"
     lines.append(wind_line)
 
-    lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, 100 if row.rain_mm > 0 else 0)}")
+    lines.append(f"{l.rain_emoji(row.rain_mm)} {row.rain_mm:.1f}mm{_rain_note(row.rain_mm, None)}")
 
     uv = _uv_line(row.uv)
     if uv:
