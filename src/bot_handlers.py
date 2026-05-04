@@ -9,9 +9,7 @@ _COMMANDS = """
 /cycle [city] [day] [morning|noon|evening|night] — cycling breakdown with verdict
 /cyclenow [city] — cycling verdict for right now
 /schedule — manage daily forecast schedule
-/add [city] — add a location
-/remove — remove a saved location
-/locations — list saved locations"""
+/locations — manage your locations"""
 
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,7 +20,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Welcome, {name}! 🚴\n\n"
             "I send you a daily weather forecast and let you check conditions on demand.\n"
             f"\nCommands:{_COMMANDS}\n\n"
-            "Add your first location with /add [city], then set up a daily forecast with /schedule."
+            "Add your first location with /locations, then set up a daily forecast with /schedule."
         )
     else:
         await update.message.reply_text(
