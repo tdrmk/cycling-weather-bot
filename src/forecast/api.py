@@ -72,6 +72,7 @@ async def geocode(city: str) -> list[Location]:
             id=result["id"],
             city_name=result["name"],
             state=result.get("admin1", ""),
+            county=result.get("admin2", "") if result.get("admin2") != result["name"] else "",
             country=result.get("country_code", ""),
             lat=result["latitude"],
             lon=result["longitude"],

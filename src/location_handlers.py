@@ -4,6 +4,7 @@ from telegram.ext import (
     MessageHandler, filters,
 )
 import forecast
+from location_utils import loc_label
 
 WAITING_CITY = 0
 
@@ -13,7 +14,7 @@ async def locations_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if locs:
         lines = ["*Your locations:*"]
         for l in locs:
-            detail = ", ".join(filter(None, [l.state, l.country]))
+            detail = ", ".join(filter(None, [l.county, l.state, l.country]))
             suffix = f" — {detail}" if detail else ""
             lines.append(f"• *{l.city_name}*{suffix}")
         text = "\n".join(lines)
@@ -54,14 +55,11 @@ async def loc_receive_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"{loc.city_name} is already in your locations.")
         else:
             context.user_data.setdefault("locations", []).append(loc)
-            await update.message.reply_text(f"Added {', '.join(filter(None, [loc.city_name, loc.state, loc.country]))} ✅")
+            await update.message.reply_text(f"Added {loc_label(loc)} ✅")
         return ConversationHandler.END
     context.chat_data["add_results"] = results
     buttons = [
-        [InlineKeyboardButton(
-            ", ".join(filter(None, [r.city_name, r.state, r.country])),
-            callback_data=f"loc:pick:{r.id}",
-        )]
+        [InlineKeyboardButton(loc_label(r), callback_data=f"loc:pick:{r.id}")]
         for r in results
     ]
     await update.message.reply_text(
@@ -87,7 +85,7 @@ async def loc_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"{loc.city_name} is already in your locations.")
     else:
         context.user_data.setdefault("locations", []).append(loc)
-        await query.edit_message_text(f"Added {', '.join(filter(None, [loc.city_name, loc.state, loc.country]))} ✅")
+        await query.edit_message_text(f"Added {loc_label(loc)} ✅")
 
 
 async def loc_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,10 +93,7 @@ async def loc_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     locs = context.user_data.get("locations", [])
     buttons = [
-        [InlineKeyboardButton(
-            ", ".join(filter(None, [l.city_name, l.state, l.country])),
-            callback_data=f"loc:delete:{l.id}",
-        )]
+        [InlineKeyboardButton(loc_label(l), callback_data=f"loc:delete:{l.id}")]
         for l in locs
     ]
     buttons.append([InlineKeyboardButton("« Back", callback_data="loc:back")])

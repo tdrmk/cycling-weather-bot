@@ -11,6 +11,7 @@ class Location:
     lat: float      # degrees
     lon: float      # degrees
     timezone: str = "America/Los_Angeles"
+    county: str = ""
 
 
 @dataclass

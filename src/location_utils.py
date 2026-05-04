@@ -1,6 +1,10 @@
 import forecast
 
 
+def loc_label(loc):
+    return ", ".join(filter(None, [loc.city_name, loc.county, loc.state, loc.country]))
+
+
 async def resolve_location(context, city_arg=None):
     locs = context.user_data.get("locations", [])
     if not city_arg:
@@ -30,5 +34,4 @@ def lookup_location(context, loc_id):
 
 
 def oneoff_note(loc):
-    parts = [p for p in [loc.city_name, loc.state, loc.country] if p]
-    return f"\n\n_📍 {', '.join(parts)} · not saved — /locations to add it._"
+    return f"\n\n_📍 {loc_label(loc)} · not saved — /locations to add it._"

@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
+from location_utils import loc_label
 from scheduled import register_user_job, remove_user_job
 
 
@@ -41,10 +42,7 @@ async def sched_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     buttons = [
-        [InlineKeyboardButton(
-            ", ".join(filter(None, [l.city_name, l.state, l.country])),
-            callback_data=f"schedule:add:loc:{l.id}",
-        )]
+        [InlineKeyboardButton(loc_label(l), callback_data=f"schedule:add:loc:{l.id}")]
         for l in locs
     ]
     buttons.append([InlineKeyboardButton("« Back", callback_data="schedule:back")])
