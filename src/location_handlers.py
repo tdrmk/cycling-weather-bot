@@ -1,3 +1,4 @@
+from collections import Counter
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler,
@@ -58,8 +59,9 @@ async def loc_receive_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Added {loc_label(loc)} ✅")
         return ConversationHandler.END
     context.chat_data["add_results"] = results
+    state_counts = Counter(r.state for r in results)
     buttons = [
-        [InlineKeyboardButton(loc_label(r), callback_data=f"loc:pick:{r.id}")]
+        [InlineKeyboardButton(loc_label(r, county=state_counts[r.state] > 1), callback_data=f"loc:pick:{r.id}")]
         for r in results
     ]
     await update.message.reply_text(

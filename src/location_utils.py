@@ -1,8 +1,8 @@
 import forecast
 
 
-def loc_label(loc):
-    return ", ".join(filter(None, [loc.city_name, loc.county, loc.state, loc.country]))
+def loc_label(loc, county=False):
+    return ", ".join(filter(None, [loc.city_name, loc.county if county else "", loc.state, loc.country]))
 
 
 async def resolve_location(context, city_arg=None):
