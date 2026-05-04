@@ -61,12 +61,13 @@ async def geocode(city: str) -> list[Location]:
     async with httpx.AsyncClient() as client:
         r = await client.get(GEOCODING_URL, params={
             "name": city,
-            "count": 5,
+            "count": 10,
             "language": "en",
             "format": "json",
         })
         r.raise_for_status()
         results = r.json().get("results", [])
+        results = sorted(results, key=lambda x: x.get("population") or 0, reverse=True)
         return [Location(
             id=result["id"],
             city_name=result["name"],
