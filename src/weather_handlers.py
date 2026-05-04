@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 import forecast
 import formatters
+from location_utils import resolve_location, lookup_location, oneoff_note
 
 _DAY_RE = re.compile(
     r"\b(next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow)\b",
@@ -17,18 +18,6 @@ _WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
 
 def _loc_name(loc):
     return loc.city_name
-
-
-def resolve_location(context, city_arg=None):
-    locs = context.user_data.get("locations", [])
-    if not locs:
-        return None, "No locations set. Add one with /add <city>"
-    if city_arg:
-        match = next((l for l in locs if l.city_name.lower() == city_arg.lower()), None)
-        if not match:
-            return None, f'"{city_arg}" not in your locations. Use /locations to see what\'s saved.'
-        return match, None
-    return locs[0], None
 
 
 def _now_hour(loc):
@@ -59,23 +48,27 @@ def _parse_forecast_args(args, today):
 
 async def now_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     city_arg = " ".join(context.args).strip() or None
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
     result = await forecast.get_now(loc)
     text = formatters.format_now(loc, result)
+    if not matched:
+        text += oneoff_note(loc)
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
 async def week_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     city_arg = " ".join(context.args).strip() or None
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
     week = await forecast.get_week(loc)
     text = formatters.format_week_compact(_loc_name(loc), week)
+    if not matched:
+        text += oneoff_note(loc)
     button = InlineKeyboardButton("Show extended ▼", callback_data=f"week:extended:{loc.id}")
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
@@ -85,10 +78,9 @@ async def week_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id = query.data.split(":", 2)
     loc_id = int(loc_id)
-    locs = context.user_data.get("locations", [])
-    loc = next((l for l in locs if l.id == loc_id), None)
+    loc = lookup_location(context, loc_id)
     if not loc:
-        await query.edit_message_text("Location no longer saved.")
+        await query.edit_message_text("Location no longer available.")
         return
     week = await forecast.get_week(loc)
     if view == "extended":
@@ -102,7 +94,7 @@ async def week_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def today_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     city_arg = " ".join(context.args).strip() or None
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
@@ -111,6 +103,8 @@ async def today_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = _now_hour(loc)
     hourly.rows = {dt: row for dt, row in hourly.rows.items() if dt >= now}
     text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
+    if not matched:
+        text += oneoff_note(loc)
     button = InlineKeyboardButton("Show extended ▼", callback_data=f"today:extended:{loc.id}")
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
@@ -120,10 +114,9 @@ async def today_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id = query.data.split(":", 2)
     loc_id = int(loc_id)
-    locs = context.user_data.get("locations", [])
-    loc = next((l for l in locs if l.id == loc_id), None)
+    loc = lookup_location(context, loc_id)
     if not loc:
-        await query.edit_message_text("Location no longer saved.")
+        await query.edit_message_text("Location no longer available.")
         return
     today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     hourly = await forecast.get_hourly(loc, today_loc)
@@ -141,7 +134,7 @@ async def today_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def forecast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # First pass: extract city only to resolve location and get its timezone
     city_arg, _ = _parse_forecast_args(context.args, date.today())
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
@@ -149,6 +142,8 @@ async def forecast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, target_date = _parse_forecast_args(context.args, today_loc)
     hourly = await forecast.get_hourly(loc, target_date)
     text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
+    if not matched:
+        text += oneoff_note(loc)
     button = InlineKeyboardButton(
         "Show extended ▼",
         callback_data=f"forecast:extended:{loc.id}:{target_date.isoformat()}",
@@ -161,10 +156,9 @@ async def forecast_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id, date_str = query.data.split(":", 3)
     loc_id = int(loc_id)
-    locs = context.user_data.get("locations", [])
-    loc = next((l for l in locs if l.id == loc_id), None)
+    loc = lookup_location(context, loc_id)
     if not loc:
-        await query.edit_message_text("Location no longer saved.")
+        await query.edit_message_text("Location no longer available.")
         return
     today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     target_date = date.fromisoformat(date_str)

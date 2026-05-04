@@ -6,7 +6,8 @@ from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 import forecast
 import labels as l
-from weather_handlers import resolve_location, _next_weekday, _WEEKDAYS
+from weather_handlers import _next_weekday, _WEEKDAYS
+from location_utils import resolve_location, lookup_location, oneoff_note
 
 PERIODS = {
     "morning": (range(8, 12),  "Morning (8AM–12PM)"),
@@ -18,7 +19,7 @@ PERIODS = {
 _PERIOD_NAMES = set(PERIODS)
 
 
-def _parse_cycle_args(args, saved_locs, today):
+def _parse_cycle_args(args, today):
     tokens = [t.lower() for t in args]
 
     # Extract period (first matching token wins)
@@ -54,18 +55,8 @@ def _parse_cycle_args(args, saved_locs, today):
     tokens = rest
 
     # Remaining tokens = city name
-    city_str = " ".join(tokens) or None
-    city_arg = None
-    if city_str:
-        match = next((loc for loc in saved_locs if loc.city_name.lower() == city_str), None)
-        if not match:
-            return None, None, None, (
-                f'Unknown argument "{city_str}". '
-                f'Usage: /cycle [city] [day] [morning|noon|evening|night]'
-            )
-        city_arg = match.city_name
-
-    return city_arg, target_date, period, None
+    city_arg = " ".join(tokens) or None
+    return city_arg, target_date, period
 
 
 # --- Verdict ---
@@ -309,32 +300,23 @@ def format_cycle_now(loc_name, row):
 # --- Handler ---
 
 async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    saved_locs = context.user_data.get("locations", [])
-    if not saved_locs:
-        await update.message.reply_text("No locations set. Add one with /add <city>")
-        return
-
     # First pass: extract city only (city extraction is date-independent)
-    city_arg, _, _, err = _parse_cycle_args(context.args, saved_locs, date.today())
-    if err:
-        await update.message.reply_text(err)
-        return
+    city_arg, _, _ = _parse_cycle_args(context.args, date.today())
 
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
 
     today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
-    city_arg, target_date, period, err = _parse_cycle_args(context.args, saved_locs, today_loc)
-    if err:
-        await update.message.reply_text(err)
-        return
+    _, target_date, period = _parse_cycle_args(context.args, today_loc)
 
     hrly = await forecast.get_hourly(loc, target_date)
 
     if period is None:
         text = format_cycle_day_compact(loc.city_name, hrly, today_loc)
+        if not matched:
+            text += oneoff_note(loc)
         button = InlineKeyboardButton(
             "Show extended ▼",
             callback_data=f"cycle:extended:{loc.id}:{target_date.isoformat()}",
@@ -358,17 +340,21 @@ async def cycle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     text = format_cycle(loc.city_name, hrly, period, today_loc)
+    if not matched:
+        text += oneoff_note(loc)
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
 async def cyclenow_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     city_arg = " ".join(context.args).strip() or None
-    loc, err = resolve_location(context, city_arg)
+    loc, matched, err = await resolve_location(context, city_arg)
     if err:
         await update.message.reply_text(err)
         return
     result = await forecast.get_now(loc)
     text = format_cycle_now(loc.city_name, result)
+    if not matched:
+        text += oneoff_note(loc)
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
@@ -377,10 +363,9 @@ async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id, date_str = query.data.split(":", 3)
     loc_id = int(loc_id)
-    locs = context.user_data.get("locations", [])
-    loc = next((l for l in locs if l.id == loc_id), None)
+    loc = lookup_location(context, loc_id)
     if not loc:
-        await query.edit_message_text("Location no longer saved.")
+        await query.edit_message_text("Location no longer available.")
         return
     today_loc = datetime.now(ZoneInfo(loc.timezone)).date()
     target_date = date.fromisoformat(date_str)
