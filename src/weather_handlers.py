@@ -78,7 +78,7 @@ async def week_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id = query.data.split(":", 2)
     loc_id = int(loc_id)
-    loc = lookup_location(context, loc_id)
+    loc, matched = lookup_location(context, loc_id)
     if not loc:
         await query.edit_message_text("Location no longer available.")
         return
@@ -89,6 +89,8 @@ async def week_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = formatters.format_week_compact(_loc_name(loc), week)
         button = InlineKeyboardButton("Show extended ▼", callback_data=f"week:extended:{loc.id}")
+    if not matched:
+        text += oneoff_note(loc)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
 
@@ -114,7 +116,7 @@ async def today_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id = query.data.split(":", 2)
     loc_id = int(loc_id)
-    loc = lookup_location(context, loc_id)
+    loc, matched = lookup_location(context, loc_id)
     if not loc:
         await query.edit_message_text("Location no longer available.")
         return
@@ -128,6 +130,8 @@ async def today_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = formatters.format_hourly_compact(_loc_name(loc), hourly, today_loc)
         button = InlineKeyboardButton("Show extended ▼", callback_data=f"today:extended:{loc.id}")
+    if not matched:
+        text += oneoff_note(loc)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
 
@@ -156,7 +160,7 @@ async def forecast_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id, date_str = query.data.split(":", 3)
     loc_id = int(loc_id)
-    loc = lookup_location(context, loc_id)
+    loc, matched = lookup_location(context, loc_id)
     if not loc:
         await query.edit_message_text("Location no longer available.")
         return
@@ -175,6 +179,8 @@ async def forecast_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Show extended ▼",
             callback_data=f"forecast:extended:{loc.id}:{date_str}",
         )
+    if not matched:
+        text += oneoff_note(loc)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
 

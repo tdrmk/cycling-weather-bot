@@ -28,9 +28,10 @@ async def resolve_location(context, city_arg=None):
 def lookup_location(context, loc_id):
     locs = context.user_data.get("locations", [])
     loc = next((l for l in locs if l.id == loc_id), None)
-    if loc is None:
-        loc = context.chat_data.get("oneoff_locs", {}).get(loc_id)
-    return loc
+    if loc is not None:
+        return loc, True
+    loc = context.chat_data.get("oneoff_locs", {}).get(loc_id)
+    return loc, False
 
 
 def oneoff_note(loc):

@@ -363,7 +363,7 @@ async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _, view, loc_id, date_str = query.data.split(":", 3)
     loc_id = int(loc_id)
-    loc = lookup_location(context, loc_id)
+    loc, matched = lookup_location(context, loc_id)
     if not loc:
         await query.edit_message_text("Location no longer available.")
         return
@@ -382,6 +382,8 @@ async def cycle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Show extended ▼",
             callback_data=f"cycle:extended:{loc.id}:{date_str}",
         )
+    if not matched:
+        text += oneoff_note(loc)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[button]]))
 
 
