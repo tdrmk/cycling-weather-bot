@@ -1,20 +1,52 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ContextTypes, CommandHandler, CallbackQueryHandler,
-    ConversationHandler, MessageHandler, filters,
+    CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler,
+    MessageHandler, filters,
 )
 import forecast
 
-WAITING_CITY, WAITING_PICK = range(2)
+WAITING_CITY = 0
 
 
-async def _add_city(update, context, city):
+async def locations_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    locs = context.user_data.get("locations", [])
+    if locs:
+        lines = ["*Your locations:*"]
+        for l in locs:
+            detail = ", ".join(filter(None, [l.state, l.country]))
+            suffix = f" — {detail}" if detail else ""
+            lines.append(f"• *{l.city_name}*{suffix}")
+        text = "\n".join(lines)
+    else:
+        text = "*Locations*\nNo locations set yet."
+    buttons = [[InlineKeyboardButton("＋ Add", callback_data="loc:add")]]
+    if locs:
+        buttons.append([InlineKeyboardButton("－ Remove", callback_data="loc:remove")])
+    markup = InlineKeyboardMarkup(buttons)
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=markup)
+    else:
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=markup)
+    return ConversationHandler.END
+
+
+async def loc_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        "Send a city name to add:\n\n_(use /locations to cancel)_",
+        parse_mode="Markdown",
+    )
+    return WAITING_CITY
+
+
+async def loc_receive_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    city = update.message.text.strip()
     results = await forecast.geocode(city)
-
     if not results:
         await update.message.reply_text(f'No locations found for "{city}". Try a different name.')
         return ConversationHandler.END
-
     if len(results) == 1:
         loc = results[0]
         locs = context.user_data.get("locations", [])
@@ -24,12 +56,11 @@ async def _add_city(update, context, city):
             context.user_data.setdefault("locations", []).append(loc)
             await update.message.reply_text(f"Added {', '.join(filter(None, [loc.city_name, loc.state, loc.country]))} ✅")
         return ConversationHandler.END
-
     context.chat_data["add_results"] = results
     buttons = [
         [InlineKeyboardButton(
             ", ".join(filter(None, [r.city_name, r.state, r.country])),
-            callback_data=f"add:{r.id}",
+            callback_data=f"loc:pick:{r.id}",
         )]
         for r in results
     ]
@@ -37,26 +68,18 @@ async def _add_city(update, context, city):
         "Found multiple matches, pick one:",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
-    return WAITING_PICK
+    return ConversationHandler.END
 
 
-async def add_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    city = " ".join(context.args).strip()
-    if city:
-        return await _add_city(update, context, city)
-    await update.message.reply_text("Which city?")
-    return WAITING_CITY
+async def add_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Cancelled. Use /locations to try again.")
+    return ConversationHandler.END
 
 
-async def add_receive_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    city = update.message.text.strip()
-    return await _add_city(update, context, city)
-
-
-async def add_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def loc_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    loc_id = int(query.data.split(":")[1])
+    loc_id = int(query.data.split(":")[2])
     results = context.chat_data.pop("add_results", [])
     loc = next(r for r in results if r.id == loc_id)
     locs = context.user_data.get("locations", [])
@@ -65,72 +88,55 @@ async def add_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.user_data.setdefault("locations", []).append(loc)
         await query.edit_message_text(f"Added {', '.join(filter(None, [loc.city_name, loc.state, loc.country]))} ✅")
-    return ConversationHandler.END
 
 
-async def add_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled. Use /add <city> to try again.")
-    return ConversationHandler.END
-
-
-async def locations_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def loc_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
     locs = context.user_data.get("locations", [])
-    if not locs:
-        await update.message.reply_text("You have no locations set. Add one with /add <city>")
-        return
-    lines = ["*Your locations:*"]
-    for l in locs:
-        detail = ", ".join(filter(None, [l.state, l.country]))
-        suffix = f" — {detail}" if detail else ""
-        lines.append(f"• *{l.city_name}*{suffix}")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def remove_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    locs = context.user_data.get("locations", [])
-    if not locs:
-        await update.message.reply_text("You have no locations set. Add one with /add <city>")
-        return
     buttons = [
         [InlineKeyboardButton(
             ", ".join(filter(None, [l.city_name, l.state, l.country])),
-            callback_data=f"remove:{l.id}",
+            callback_data=f"loc:delete:{l.id}",
         )]
         for l in locs
     ]
-    await update.message.reply_text(
+    buttons.append([InlineKeyboardButton("« Back", callback_data="loc:back")])
+    await query.edit_message_text(
         "Which location to remove?",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
 
-async def remove_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def loc_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    loc_id = int(query.data.split(":", 1)[1])
+    loc_id = int(query.data.split(":")[2])
     locs = context.user_data.get("locations", [])
-    loc = next(l for l in locs if l.id == loc_id)
+    loc = next((l for l in locs if l.id == loc_id), None)
+    if not loc:
+        await query.edit_message_text("Already removed.")
+        return
     context.user_data["locations"] = [l for l in locs if l.id != loc_id]
     await query.edit_message_text(f"Removed {loc.city_name} ✅")
 
 
 location_handlers = [
     ConversationHandler(
-        entry_points=[CommandHandler(["add", "addlocation"], add_start)],
+        entry_points=[CallbackQueryHandler(loc_add, pattern="^loc:add$")],
         states={
-            WAITING_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_receive_city)],
-            WAITING_PICK: [CallbackQueryHandler(add_pick, pattern="^add:")],
+            WAITING_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, loc_receive_city)],
         },
         fallbacks=[MessageHandler(filters.COMMAND, add_cancel)],
         conversation_timeout=60,
     ),
-    CommandHandler(["remove", "removelocation"], remove_start),
-    CallbackQueryHandler(remove_pick, pattern="^remove:"),
     CommandHandler("locations", locations_cmd),
+    CallbackQueryHandler(loc_remove, pattern="^loc:remove$"),
+    CallbackQueryHandler(loc_delete, pattern="^loc:delete:"),
+    CallbackQueryHandler(loc_pick, pattern="^loc:pick:"),
+    CallbackQueryHandler(locations_cmd, pattern="^loc:back$"),
 ]
 
 commands = [
-    ("add", "Add a location"),
-    ("remove", "Remove a location"),
-    ("locations", "List your locations"),
+    ("locations", "Manage your locations"),
 ]
